@@ -1,0 +1,41 @@
+type Document = record {
+  id : nat64;
+  title : text;
+  updated_at : opt nat64;
+  description : text;
+  history : vec DocumentVersion;
+  created_at : nat64;
+  file_url : text;
+  version : nat64;
+  is_deleted : bool;
+};
+type DocumentMetadata = record { updated_by : text; change_summary : text };
+type DocumentPayload = record {
+  title : text;
+  metadata : DocumentMetadata;
+  description : text;
+  file_url : text;
+};
+type DocumentVersion = record {
+  title : text;
+  updated_at : nat64;
+  metadata : DocumentMetadata;
+  description : text;
+  file_url : text;
+  version : nat64;
+};
+type Error = variant {
+  AlreadyDeleted;
+  DocumentDeleted;
+  NotFound : record { msg : text };
+  NotDeleted;
+};
+type Result = variant { Ok : Document; Err : Error };
+service : {
+  add_documents : (vec DocumentPayload) -> (vec Document);
+  get_document : (nat64) -> (Result) query;
+  restore_document : (nat64) -> (Result);
+  search_documents : (text) -> (vec Document) query;
+  soft_delete_document : (nat64) -> (Result);
+  update_document : (nat64, DocumentPayload) -> (Result);
+}
