@@ -83,20 +83,40 @@ thread_local! {
     ));
 }
 
+// Payload validation function
+fn validate_document_payload(payload: &DocumentPayload) -> Result<(), Error> {
+    if payload.title.trim().is_empty() {
+        return Err(Error::InvalidInput { msg: "Title cannot be empty".to_string() });
+    }
+    if payload.description.trim().is_empty() {
+        return Err(Error::InvalidInput { msg: "Description cannot be empty".to_string() });
+    }
+    if payload.file_url.trim().is_empty() {
+        return Err(Error::InvalidInput { msg: "File URL cannot be empty".to_string() });
+    }
+    if payload.metadata.change_summary.trim().is_empty() {
+        return Err(Error::InvalidInput { msg: "Change summary cannot be empty".to_string() });
+    }
+    Ok(())
+}
+
 // Function to add multiple documents at once
 #[ic_cdk::update]
-fn add_documents(documents: Vec<DocumentPayload>) -> Vec<Document> {
+fn add_documents(documents: Vec<DocumentPayload>) -> Result<Vec<Document>, Error> {
     let mut added_documents = Vec::new();
 
     for payload in documents {
-        let document = add_single_document(payload.clone());
+        let document = add_single_document(payload.clone())?;
         added_documents.push(document);
     }
 
-    added_documents
+    Ok(added_documents)
 }
 
-fn add_single_document(payload: DocumentPayload) -> Document {
+fn add_single_document(payload: DocumentPayload) -> Result<Document, Error> {
+    // Validate the payload
+    validate_document_payload(&payload)?;
+
     let id = ID_COUNTER.with(|counter| {
         let current_value = *counter.borrow().get();
         counter.borrow_mut().set(current_value + 1)
@@ -122,7 +142,7 @@ fn add_single_document(payload: DocumentPayload) -> Document {
     };
 
     do_insert_document(&document);
-    document
+    Ok(document)
 }
 
 fn do_insert_document(document: &Document) {
@@ -132,6 +152,9 @@ fn do_insert_document(document: &Document) {
 // Update a document and track version history with metadata
 #[ic_cdk::update]
 fn update_document(id: u64, payload: DocumentPayload) -> Result<Document, Error> {
+    // Validate the payload
+    validate_document_payload(&payload)?;
+
     STORAGE.with(|service| {
         match service.borrow().get(&id) {
             Some(mut document) => {
@@ -240,6 +263,8 @@ enum Error {
     DocumentDeleted,
     AlreadyDeleted,
     NotDeleted,
+    InvalidInput { msg: String },
 }
 
+// Export candid interface
 ic_cdk::export_candid!();
